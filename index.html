@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Im Hotel – Probleme lösen</title>
+<style>
+:root{
+  --blue:#4f86c6; --green:#5f9f78; --gold:#d0ad4f; --red:#c66a61; --purple:#8b6abb;
+  --ink:#222; --muted:#6f7680; --line:#d9dde5; --bg:#f6f7fa; --card:#fff;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:Arial,Helvetica,sans-serif;font-size:17px;line-height:1.45}
+main{max-width:1080px;margin:0 auto;padding:24px}
+h1{margin:0 0 8px;color:#3e79b9;font-size:30px}
+h2{font-size:23px;margin:0 0 12px}
+h3{font-size:18px;margin:0 0 8px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px;margin:0 0 22px}
+.small{font-size:14px;color:var(--muted)}
+.btns{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+button{border:0;border-radius:10px;padding:10px 14px;font:inherit;font-weight:700;cursor:pointer}
+.primary{background:#3f7fc0;color:#fff}.secondary{background:#edf0f4;color:#27313c}
+.feedback{margin-top:10px;font-weight:700;min-height:24px}.ok{color:#2f7c4c}.bad{color:#b34f48}
+.progress{height:10px;background:#e6e9ee;border-radius:999px;overflow:hidden;margin:14px 0 24px}
+.progress div{height:100%;width:0;background:#4f86c6;transition:.25s}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+@media(max-width:720px){.grid{grid-template-columns:1fr}main{padding:14px}body{font-size:16px}}
+.box{border:1px solid var(--line);border-radius:12px;padding:14px;background:#fff}
+.problem{background:#f9f5e9;border-left:5px solid var(--gold)}
+.staff{background:#eef6f1;border-left:5px solid var(--green)}
+.guest{background:#eef4fb;border-left:5px solid var(--blue)}
+.wordbank{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+.word{padding:8px 11px;border:1px solid #cfd5de;border-radius:9px;background:#f3f5f8;cursor:pointer}
+.word.used{opacity:.35}
+.drop{min-height:48px;border:2px dashed #cbd2dc;border-radius:10px;padding:8px;background:#fbfcfd}
+.flow{display:grid;gap:10px}
+.flow-row{display:grid;grid-template-columns:42px minmax(0,1fr) 180px;gap:10px;align-items:center}
+.num{width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#edf2f8;font-weight:700}
+select,input[type=text],textarea{width:100%;padding:10px 12px;border:1px solid #bdc5d0;border-radius:10px;font:inherit;background:#fff}
+textarea{min-height:90px;resize:vertical}
+@media(max-width:700px){.flow-row{grid-template-columns:36px 1fr}.flow-row select{grid-column:2}}
+.ticket{padding:14px;border-radius:12px;border:1px solid var(--line);background:#fff}
+.ticket .tag{display:inline-block;padding:4px 8px;border-radius:999px;background:#eef1f6;font-size:13px;font-weight:700;margin-bottom:8px}
+.conversation{display:grid;gap:9px}
+.line{padding:11px 13px;border-radius:10px}
+.line.g{background:#eef4fb}.line.s{background:#eef6f1}
+.errorline{display:grid;grid-template-columns:minmax(0,1fr) 44px;gap:10px;align-items:center}
+.mark{font-size:24px;text-align:center;font-weight:700}
+.score{display:flex;justify-content:space-between;align-items:center;padding:14px 16px;background:#eef2f7;border-radius:12px;margin-top:16px}
+.rolegrid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:700px){.rolegrid{grid-template-columns:1fr}}
+
+.sortable .drag-item{
+  display:grid;
+  grid-template-columns:42px 34px minmax(0,1fr);
+  gap:10px;
+  align-items:center;
+  padding:10px;
+  border:1px solid var(--line);
+  border-radius:12px;
+  background:#fff;
+  cursor:grab;
+  user-select:none;
+}
+.sortable .drag-item:active{cursor:grabbing}
+.drag-handle{
+  font-size:22px;
+  color:#7b8490;
+  text-align:center;
+}
+.drag-item.dragging{opacity:.45}
+.drag-item.over{outline:2px dashed #4f86c6; outline-offset:2px}
+
+
+.exercise-head{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin-bottom:12px;
+}
+.exercise-num{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  width:34px;
+  height:34px;
+  border-radius:50%;
+  background:#edf2f8;
+  font-weight:700;
+  font-size:18px;
+  flex:0 0 auto;
+}
+.exercise-prompt{
+  margin:0;
+  font-size:16px;
+  font-weight:400;
+  color:var(--ink);
+  line-height:1.35;
+}
+
+</style>
+</head>
+<body>
+<main>
+  <h1>Im Hotel: Probleme lösen</h1>
+  <div class="progress"><div id="bar"></div></div>
+
+  <section class="card">
+    <div class="exercise-head"><span class="exercise-num">1</span><p class="exercise-prompt">Ergänze die passende Beschwerde.</p></div>
+    <div class="wordbank" id="wordbank"></div>
+    <div class="grid" id="gaps"></div>
+    <div class="btns"><button class="primary" id="checkGaps">Prüfen</button><button class="secondary" id="resetGaps">Zurücksetzen</button></div>
+    <div id="gapFb" class="feedback" aria-live="polite"></div>
+  </section>
+
+  <section class="card">
+    <div class="exercise-head"><span class="exercise-num">2</span><p class="exercise-prompt">Ziehe die Sätze mit der Maus in die richtige Reihenfolge.</p></div>
+    <div id="flow" class="flow sortable" aria-label="Gespräch ordnen"></div>
+    <div class="btns">
+      <button class="primary" id="checkFlow">Prüfen</button>
+      <button class="secondary" id="newFlow">Neu mischen</button>
+    </div>
+    <div id="flowFb" class="feedback" aria-live="polite"></div>
+  </section>
+
+  <section class="card">
+    <div class="exercise-head"><span class="exercise-num">3</span><p class="exercise-prompt">In jedem Satz steckt ein Fehler. Schreibe den Satz richtig.</p></div>
+    <div id="errors" class="conversation"></div>
+    <div class="btns"><button class="primary" id="checkErrors">Prüfen</button></div>
+    <div id="errorFb" class="feedback" aria-live="polite"></div>
+  </section>
+</main>
+
+<script>
+(function(){
+const $=s=>document.querySelector(s);
+const shuffle=a=>[...a].sort(()=>Math.random()-.5);
+let scores={flow:0,gaps:0,error:0};
+function update(){
+  const total=Object.values(scores).reduce((a,b)=>a+b,0);
+  $("#score").textContent=total+" / 12";
+  $("#bar").style.width=(total/12*100)+"%";
+}
+
+const flowItems=[
+"Entschuldigen Sie, können Sie mir helfen?",
+"Ja, gern. Was kann ich für Sie tun?",
+"Die Heizung funktioniert nicht.",
+"Oh, das tut mir leid. Ich kümmere mich darum.",
+"Wann ...?",
+"Das kann ich Ihnen nicht sagen. Vielleicht heute Nachmittag.",
+"Super, vielen Dank!",
+"Sehr gern."
+];
+
+let draggedItem=null;
+
+function renumberFlow(){
+  document.querySelectorAll("#flow .drag-item").forEach((item,i)=>{
+    item.querySelector(".num").textContent=i+1;
+  });
+}
+
+function makeDragItem(text){
+  const item=document.createElement("div");
+  item.className="drag-item";
+  item.draggable=true;
+  item.dataset.text=text;
+  item.innerHTML=`<div class="num"></div><div class="drag-handle" aria-hidden="true">☰</div><div>${text}</div>`;
+
+  item.addEventListener("dragstart",()=>{
+    draggedItem=item;
+    item.classList.add("dragging");
+  });
+
+  item.addEventListener("dragend",()=>{
+    item.classList.remove("dragging");
+    document.querySelectorAll("#flow .drag-item").forEach(x=>x.classList.remove("over"));
+    draggedItem=null;
+    renumberFlow();
+  });
+
+  item.addEventListener("dragover",(e)=>{
+    e.preventDefault();
+    if(!draggedItem || draggedItem===item) return;
+    item.classList.add("over");
+  });
+
+  item.addEventListener("dragleave",()=>{
+    item.classList.remove("over");
+  });
+
+  item.addEventListener("drop",(e)=>{
+    e.preventDefault();
+    item.classList.remove("over");
+    if(!draggedItem || draggedItem===item) return;
+    const container=$("#flow");
+    const items=[...container.querySelectorAll(".drag-item")];
+    const from=items.indexOf(draggedItem);
+    const to=items.indexOf(item);
+    if(from<to){
+      container.insertBefore(draggedItem,item.nextSibling);
+    }else{
+      container.insertBefore(draggedItem,item);
+    }
+    renumberFlow();
+  });
+
+  return item;
+}
+
+function renderFlow(){
+  const f=$("#flow");
+  f.innerHTML="";
+  shuffle(flowItems).forEach(text=>f.appendChild(makeDragItem(text)));
+  renumberFlow();
+  $("#flowFb").textContent="";
+}
+
+$("#checkFlow").addEventListener("click",()=>{
+  const current=[...document.querySelectorAll("#flow .drag-item")].map(x=>x.dataset.text);
+  let ok=0;
+  current.forEach((text,i)=>{
+    const item=document.querySelectorAll("#flow .drag-item")[i];
+    if(text===flowItems[i]){
+      ok++;
+      item.style.borderColor="#5f9f78";
+      item.style.background="#f0f8f3";
+    }else{
+      item.style.borderColor="#c66a61";
+      item.style.background="#fff5f4";
+    }
+  });
+  scores.flow=Math.round(ok/8*4);
+  $("#flowFb").className="feedback "+(ok===8?"ok":"bad");
+  $("#flowFb").textContent=ok===8?"Alles richtig!":ok+" von 8 Positionen richtig.";
+  update();
+});
+
+$("#newFlow").addEventListener("click",()=>{
+  renderFlow();
+  scores.flow=0;
+  update();
+});
+
+const gapData=[
+["Es gibt keine ___.","Handtücher"],
+["Der ___ ist kaputt.","Fernseher"],
+["Die ___ funktioniert nicht.","Heizung"],
+["Ich brauche einen ___.","Föhn"]
+];
+let selectedWord=null;
+function renderGaps(){
+  const words=shuffle(gapData.map(x=>x[1]));
+  $("#wordbank").innerHTML="";
+  words.forEach(w=>{
+    const b=document.createElement("button"); b.type="button"; b.className="word"; b.textContent=w;
+    b.addEventListener("click",()=>{selectedWord=b;document.querySelectorAll(".word").forEach(x=>x.style.outline="");b.style.outline="2px solid #4f86c6";});
+    $("#wordbank").appendChild(b);
+  });
+  $("#gaps").innerHTML="";
+  gapData.forEach(([sentence,answer],i)=>{
+    const d=document.createElement("div"); d.className="box";
+    d.innerHTML=`<div>${sentence}</div><div class="drop" data-answer="${answer}" data-i="${i}" style="margin-top:8px">Hier einsetzen</div>`;
+    d.querySelector(".drop").addEventListener("click",e=>{
+      if(!selectedWord)return;
+      e.currentTarget.textContent=selectedWord.textContent;
+    });
+    $("#gaps").appendChild(d);
+  });
+  $("#gapFb").textContent="";
+}
+$("#checkGaps").addEventListener("click",()=>{
+  let ok=0;
+  document.querySelectorAll(".drop").forEach(d=>{
+    if(d.textContent===d.dataset.answer){ok++;d.style.borderColor="#5f9f78"}else d.style.borderColor="#c66a61";
+  });
+  scores.gaps=ok;
+  $("#gapFb").className="feedback "+(ok===4?"ok":"bad");
+  $("#gapFb").textContent=ok===4?"Sehr gut!":ok+" von 4 richtig.";
+  update();
+});
+$("#resetGaps").addEventListener("click",renderGaps);
+
+
+const errors=[
+["Es gibt keine Handtuch.","Es gibt keine Handtücher."],
+["Die Heizung funktioniert nicht gut?","Die Heizung funktioniert nicht."],
+["Können Sie mir die Handtücher bringen bitte?","Können Sie mir bitte die Handtücher bringen?"],
+["Der Techniker kommen heute Nachmittag.","Der Techniker kommt heute Nachmittag."]
+];
+function renderErrors(){
+  const e=$("#errors"); e.innerHTML="";
+  errors.forEach(([wrong,correct],i)=>{
+    const d=document.createElement("div"); d.className="box";
+    d.innerHTML=`<div><strong>${i+1}. ${wrong}</strong></div><input type="text" data-answer="${correct}" style="margin-top:8px" placeholder="Richtiger Satz">`;
+    e.appendChild(d);
+  });
+}
+$("#checkErrors").addEventListener("click",()=>{
+  let ok=0;
+  $("#errors").querySelectorAll("input").forEach(inp=>{
+    const norm=s=>s.trim().toLowerCase().replace(/\s+/g," ");
+    if(norm(inp.value)===norm(inp.dataset.answer)){ok++;inp.style.borderColor="#5f9f78"}else inp.style.borderColor="#c66a61";
+  });
+  scores.error=ok;
+  $("#errorFb").className="feedback "+(ok===4?"ok":"bad");
+  $("#errorFb").textContent=ok===4?"Alle Fehler gefunden!":ok+" von 4 richtig.";
+  update();
+});
+
+
+renderFlow();renderGaps();renderErrors();update();
+})();
+</script>
+</body>
+</html>
