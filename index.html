@@ -98,6 +98,46 @@ textarea{min-height:90px;resize:vertical}
   line-height:1.35;
 }
 
+.flow{display:flex;flex-wrap:wrap;gap:10px}
+.sortable .drag-item{
+  display:inline-flex;
+  grid-template-columns:none;
+  gap:8px;
+  align-items:center;
+  padding:10px 14px;
+  border:1px solid var(--line);
+  border-radius:12px;
+  background:#fff;
+  cursor:pointer;
+  user-select:none;
+}
+.sortable .drag-item.selected{outline:3px solid #4f86c6;outline-offset:2px;background:#eef4fb}
+.sortable .drag-item.used{opacity:.38}
+.drag-handle{display:none}
+#answerFlow{display:flex;flex-wrap:wrap;gap:10px}
+.answer-slot{
+  width:120px;
+  min-height:88px;
+  border:2px dashed #cbd2dc;
+  border-radius:12px;
+  padding:8px;
+  background:#fbfcfd;
+  cursor:pointer;
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+}
+.answer-slot .slot-num{font-weight:700;color:#3f7fc0}
+.answer-slot .slot-text{font-size:14px;line-height:1.25}
+.answer-slot.filled{border-style:solid;background:#fff}
+
+
+#answerFlow{display:grid;grid-template-columns:1fr;gap:10px;}
+.answer-slot{width:100%;min-height:72px;border:2px dashed #cbd2dc;border-radius:12px;padding:10px 12px;background:#fbfcfd;display:grid;grid-template-columns:42px minmax(0,1fr);gap:10px;align-items:start;cursor:pointer;}
+.answer-slot.filled{border-style:solid;background:#fff;}
+.answer-slot .slot-num{font-weight:700;color:#3f7fc0;font-size:18px;}
+.answer-slot .slot-text{line-height:1.35;}
+
 </style>
 </head>
 <body>
@@ -114,8 +154,17 @@ textarea{min-height:90px;resize:vertical}
   </section>
 
   <section class="card">
-    <div class="exercise-head"><span class="exercise-num">2</span><p class="exercise-prompt">Ziehe die Sätze mit der Maus in die richtige Reihenfolge.</p></div>
-    <div id="flow" class="flow sortable" aria-label="Gespräch ordnen"></div>
+    <div class="exercise-head"><span class="exercise-num">2</span><p class="exercise-prompt">Klicke die Sätze in der richtigen Reihenfolge an.</p></div>
+    <div class="order-wrap">
+      <div class="order-panel">
+        <h3>Sätze</h3>
+        <div id="flow" class="flow sortable" aria-label="Sätze auswählen"></div>
+      </div>
+      <div class="order-panel">
+        <h3>Deine Reihenfolge</h3>
+        <div id="answerFlow" aria-label="Gewählte Reihenfolge"></div>
+      </div>
+    </div>
     <div class="btns">
       <button class="primary" id="checkFlow">Prüfen</button>
       <button class="secondary" id="newFlow">Neu mischen</button>
@@ -138,8 +187,8 @@ const shuffle=a=>[...a].sort(()=>Math.random()-.5);
 let scores={flow:0,gaps:0,error:0};
 function update(){
   const total=Object.values(scores).reduce((a,b)=>a+b,0);
-  $("#score").textContent=total+" / 12";
-  $("#bar").style.width=(total/12*100)+"%";
+  $("#score").textContent=total+" / 11";
+  $("#bar").style.width=(total/11*100)+"%";
 }
 
 const flowItems=[
@@ -153,83 +202,78 @@ const flowItems=[
 "Sehr gern."
 ];
 
-let draggedItem=null;
+let chosenFlow=Array(flowItems.length).fill(null);
+let selectedFlowText=null;
 
-function renumberFlow(){
-  document.querySelectorAll("#flow .drag-item").forEach((item,i)=>{
-    item.querySelector(".num").textContent=i+1;
+function refreshSourceStates(){
+  document.querySelectorAll("#flow .drag-item").forEach(item=>{
+    const text=item.dataset.text;
+    item.classList.toggle("used", chosenFlow.includes(text));
+    item.classList.toggle("selected", selectedFlowText===text);
   });
 }
 
 function makeDragItem(text){
   const item=document.createElement("div");
   item.className="drag-item";
-  item.draggable=true;
   item.dataset.text=text;
-  item.innerHTML=`<div class="num"></div><div class="drag-handle" aria-hidden="true">☰</div><div>${text}</div>`;
-
-  item.addEventListener("dragstart",()=>{
-    draggedItem=item;
-    item.classList.add("dragging");
+  item.textContent=text;
+  item.addEventListener("click",()=>{
+    if(chosenFlow.includes(text)) return;
+    selectedFlowText=(selectedFlowText===text)?null:text;
+    refreshSourceStates();
   });
-
-  item.addEventListener("dragend",()=>{
-    item.classList.remove("dragging");
-    document.querySelectorAll("#flow .drag-item").forEach(x=>x.classList.remove("over"));
-    draggedItem=null;
-    renumberFlow();
-  });
-
-  item.addEventListener("dragover",(e)=>{
-    e.preventDefault();
-    if(!draggedItem || draggedItem===item) return;
-    item.classList.add("over");
-  });
-
-  item.addEventListener("dragleave",()=>{
-    item.classList.remove("over");
-  });
-
-  item.addEventListener("drop",(e)=>{
-    e.preventDefault();
-    item.classList.remove("over");
-    if(!draggedItem || draggedItem===item) return;
-    const container=$("#flow");
-    const items=[...container.querySelectorAll(".drag-item")];
-    const from=items.indexOf(draggedItem);
-    const to=items.indexOf(item);
-    if(from<to){
-      container.insertBefore(draggedItem,item.nextSibling);
-    }else{
-      container.insertBefore(draggedItem,item);
-    }
-    renumberFlow();
-  });
-
   return item;
 }
+
+function renderAnswerFlow(){
+  const a=$("#answerFlow");
+  a.innerHTML="";
+  for(let i=0;i<flowItems.length;i++){
+    const slot=document.createElement("div");
+    slot.className="answer-slot"+(chosenFlow[i]?" filled":"");
+    slot.dataset.index=i;
+    slot.innerHTML=`<div class="slot-num">${i+1}</div><div class="slot-text">${chosenFlow[i]||""}</div>`;
+    slot.addEventListener("click",()=>{
+      if(chosenFlow[i]){
+        const text=chosenFlow[i];
+        chosenFlow[i]=null;
+        const src=[...document.querySelectorAll("#flow .drag-item")].find(x=>x.dataset.text===text);
+        if(src) src.style.display="grid";
+        renderAnswerFlow();
+        return;
+      }
+      if(!selectedFlowText) return;
+      chosenFlow[i]=selectedFlowText;
+      const src=[...document.querySelectorAll("#flow .drag-item")].find(x=>x.dataset.text===selectedFlowText);
+      if(src) src.style.display="none";
+      selectedFlowText=null;
+      document.querySelectorAll("#flow .drag-item").forEach(x=>x.style.outline="");
+      renderAnswerFlow();
+    });
+    a.appendChild(slot);
+  }
+}
+
 
 function renderFlow(){
   const f=$("#flow");
   f.innerHTML="";
+  chosenFlow=Array(flowItems.length).fill(null);
+  selectedFlowText=null;
   shuffle(flowItems).forEach(text=>f.appendChild(makeDragItem(text)));
-  renumberFlow();
+  renderAnswerFlow();
+  refreshSourceStates();
   $("#flowFb").textContent="";
 }
 
 $("#checkFlow").addEventListener("click",()=>{
-  const current=[...document.querySelectorAll("#flow .drag-item")].map(x=>x.dataset.text);
   let ok=0;
-  current.forEach((text,i)=>{
-    const item=document.querySelectorAll("#flow .drag-item")[i];
-    if(text===flowItems[i]){
-      ok++;
-      item.style.borderColor="#5f9f78";
-      item.style.background="#f0f8f3";
-    }else{
-      item.style.borderColor="#c66a61";
-      item.style.background="#fff5f4";
-    }
+  document.querySelectorAll("#answerFlow .answer-slot").forEach((item,i)=>{
+    const correct=chosenFlow[i]===flowItems[i];
+    if(correct) ok++;
+    item.style.borderColor=correct?"#5f9f78":"#c66a61";
+    item.style.background=correct?"#f0f8f3":"#fff5f4";
   });
   scores.flow=Math.round(ok/8*4);
   $("#flowFb").className="feedback "+(ok===8?"ok":"bad");
@@ -284,8 +328,7 @@ $("#resetGaps").addEventListener("click",renderGaps);
 
 
 const errors=[
-["Es gibt keine Handtuch.","Es gibt keine Handtücher."],
-["Die Heizung funktioniert nicht gut?","Die Heizung funktioniert nicht."],
+["Es gibt nicht Handtücher.","Es gibt keine Handtücher."],
 ["Können Sie mir die Handtücher bringen bitte?","Können Sie mir bitte die Handtücher bringen?"],
 ["Der Techniker kommen heute Nachmittag.","Der Techniker kommt heute Nachmittag."]
 ];
@@ -305,7 +348,7 @@ $("#checkErrors").addEventListener("click",()=>{
   });
   scores.error=ok;
   $("#errorFb").className="feedback "+(ok===4?"ok":"bad");
-  $("#errorFb").textContent=ok===4?"Alle Fehler gefunden!":ok+" von 4 richtig.";
+  $("#errorFb").textContent=ok===3?"Alle Fehler gefunden!":ok+" von 3 richtig.";
   update();
 });
 
